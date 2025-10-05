@@ -1,26 +1,10 @@
 #include <windows.h>
 #include <iostream>
 #include <vector>
-#include "min_max.h"
-#include "average.h" 
-using namespace std;
-double glaverage = 0;
-int glmin = 0, glmax = 0;
+#include "core.h"
 
-DWORD WINAPI min_max_thread(LPVOID lpParam) {
-    vector<int>* arr = static_cast<vector<int>*>(lpParam);
-    auto result = find_min_max(*arr);
-    glmin = result.first;
-    glmax = result.second; 
-    cout << "Thread min_max: min = " << glmin << ", max = " << glmax << endl;
-    return 0;
-}
-DWORD WINAPI average_thread(LPVOID lpParam) {
-    vector<int>* arr = static_cast<vector<int>*>(lpParam);
-    glaverage = find_average(*arr);
-    cout << "Thread average: avg = " << glaverage << endl;
-    return 0;
-}
+using namespace std;
+
 int main() {
     int n;
     cout << "Enter array size: ";
@@ -40,21 +24,21 @@ int main() {
         return 1;
     }
     WaitForSingleObject(hMinMax, INFINITE);
-    WaitForSingleObject(hAverage, INFINITE); 
+    WaitForSingleObject(hAverage, INFINITE);
 
-    for (int& val : A) {
-        if (val == glmin || val == glmax) {
-            val = static_cast<int>(glaverage);
-        }
-    }
+    vector<int> modified_array = replace_min_max_with_average(A, g_results); 
 
     cout << "Modified array: ";
-    for (int val : A) {
+    for (int val : modified_array) {
         cout << val << " ";
     }
     cout << endl;
+
     CloseHandle(hMinMax);
-    CloseHandle(hAverage); 
+    CloseHandle(hAverage);
+
     return 0;
 }
+
+
 
