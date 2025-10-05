@@ -3,8 +3,8 @@
 #include <limits>
 
 using namespace std;
-
-pair<int, int> find_min_max(const std::vector<int>& arr) {
+const int MIN_MAX_COMPARE_DELAY = 7;
+pair<int, int> find_min_max(const vector<int>& arr) {
     if (arr.empty()) return { INT_MAX, INT_MIN };
 
     int min = arr[0];
@@ -12,10 +12,11 @@ pair<int, int> find_min_max(const std::vector<int>& arr) {
 
     for (size_t i = 1; i < arr.size(); ++i) {
         if (arr[i] < min) min = arr[i];
-        Sleep(7);
+        Sleep(MIN_MAX_COMPARE_DELAY);
         if (arr[i] > max) max = arr[i];
-        Sleep(7);
+        Sleep(MIN_MAX_COMPARE_DELAY);
     }
 
     return { min, max };
 }
+
