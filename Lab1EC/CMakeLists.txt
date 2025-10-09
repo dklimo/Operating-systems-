@@ -32,4 +32,10 @@ target_link_libraries(MyTest PRIVATE gtest gtest_main)
 include(GoogleTest)
 gtest_discover_tests(MyTest)
 
+add_custom_target(check ALL
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS MyTest
+)
+
+add_dependencies(Main check)
 
