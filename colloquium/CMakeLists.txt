@@ -1,4 +1,4 @@
-﻿
+
 cmake_minimum_required (VERSION 3.8)
 project ("kollokv_1")
 
@@ -9,8 +9,24 @@ endif()
 
 add_executable(Main main.cpp "exesizes.cpp")
 
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/heads/main.zip
+)
+FetchContent_MakeAvailable(googletest)
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_target_properties(Main PROPERTIES CXX_STANDARD 20)
-endif()
+enable_testing()
+
+add_executable(MyTest tests.cpp exesizes.cpp) 
+target_link_libraries(MyTest PRIVATE gtest gtest_main)
+include(GoogleTest)
+gtest_discover_tests(MyTest)
+
+add_custom_target(check ALL
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS MyTest
+)
+
+add_dependencies(Main check)
 
