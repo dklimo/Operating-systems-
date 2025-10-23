@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <stdexcept> 
 using namespace std;
 
 struct ListN {
@@ -17,5 +18,6 @@ bool palindrome(int n);
 ListN* Reverse(ListN* head);
 void PrintResult(int n1, int n2, ListN* head);
 ListN* inputList();
+void cleanupList(ListN* head);
 
 #endif
