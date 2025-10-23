@@ -1,6 +1,9 @@
 #include "exesizes.h"
 
 vector<int> fibo(int n) {
+	if (n < 0) {
+		throw invalid_argument("Fibonacci number count cannot be negative");
+	}
 	vector <int> result;
 	if (n <= 0) return result;
 	if (n >= 1)
@@ -39,13 +42,17 @@ ListN* Reverse(ListN* head) {
 	return prev;
 }
 void PrintResult(int n1, int n2, ListN* head) {
-	vector<int> f = fibo(n1);
-	cout << "Fibonacci numbers: ";
-	for (int num : f) {
-		cout << num << ' ';
+	try {
+		vector<int> f = fibo(n1);
+		cout << "Fibonacci numbers: ";
+		for (int num : f) {
+			cout << num << ' ';
+		}
+		cout << endl;
 	}
-	cout << endl;
-
+	catch (const exception& e) {
+		cout << "Fibonacci error: " << e.what() << endl;
+	}
 	cout << "Number " << n2 << " is palindrome: ";
 	if (palindrome(n2)) {
 		cout << "YES";
@@ -63,12 +70,26 @@ void PrintResult(int n1, int n2, ListN* head) {
 		curr = curr->next;
 	}
 	cout << endl;
+	cleanupList(head); 
+}
+void cleanupList(ListN* head) {
+	while (head != nullptr) {
+		ListN* temp = head;
+		head = head->next;
+		delete temp;
+	}
 }
 ListN* inputList() {
 	int n;
 	cout << "Enter number of list elements: ";
 	cin >> n;
-	if (n <= 0) return nullptr;
+	if (n < 0) {
+		throw invalid_argument("Number of elements cannot be negative");
+	}
+	if (n == 0) return nullptr;
+	if (n > 1000) { 
+		throw invalid_argument("Too many elements, maximum is 1000");
+	}
 
 	cout << "Enter " << n << " elements: ";
 	int val;
@@ -76,8 +97,7 @@ ListN* inputList() {
 
 	ListN* head = new ListN(val);
 	ListN* tail = head;
-
-	for (int i = 1; i < n; ++i) {
+    for (int i = 1; i < n; ++i) {
 		cin >> val;
 		tail->next = new ListN(val);
 		tail = tail->next;
