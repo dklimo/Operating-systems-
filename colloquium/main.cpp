@@ -2,12 +2,25 @@
 #include "exesizes.h"
 
 int main() {
-    int n1, n2;
-    cout << "Enter Fibonacci count: ";
-    cin >> n1;
-    cout << "Enter number to check palindrome: ";
-    cin >> n2;
-    ListN* head = inputList();
-    PrintResult(n1, n2, head); 
-	return 0;
+    try {
+        int n1, n2;
+        cout << "Enter Fibonacci count: ";
+        if (!(cin >> n1)) {
+            throw invalid_argument("Invalid Fibonacci count input");
+        }
+        cout << "Enter number for palindrome check: ";
+        if (!(cin >> n2)) {
+            throw invalid_argument("Invalid palindrome number input");
+        }
+
+        ListN* head = inputList();
+        PrintResult(n1, n2, head);
+
+    }
+    catch (const exception& e) {
+        cout << "Error: " << e.what() << endl;
+        return 1;
+    }
+
+    return 0;
 }
