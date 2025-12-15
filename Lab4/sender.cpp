@@ -1,24 +1,5 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <windows.h>
 
-using namespace std;
-
-const int MAX_MESSAGE_LENGTH = 20;
-const DWORD WAIT_TIMEOUT_MS = 1000;
-
-enum ConsoleColor {
-    GREEN = 2,
-    YELLOW = 6,
-    RED = 4,
-    WHITE = 7
-};
-
-void SetColor(ConsoleColor color) {
-    HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hStdOut, (WORD)color);
-}
+#include "utils.h" 
 
 class Sender {
 private:
@@ -119,7 +100,7 @@ private:
 
         DWORD result = WaitForSingleObject(hEmptySemaphore, WAIT_TIMEOUT_MS);
         if (result == WAIT_TIMEOUT) {
-            return false; 
+            return false;
         }
         else if (result != WAIT_OBJECT_0) {
             SetColor(RED);
@@ -187,7 +168,7 @@ int main(int argc, char* argv[]) {
         cerr << "Usage: sender.exe <filename> <readyEventName> <mutexName>" << endl;
         cerr << "                  <emptySemName> <fullSemName> <messageCount>" << endl;
         SetColor(WHITE);
-        return 1;
+        return ERROR_EXIT;
     }
 
     string filename = argv[1];
@@ -205,8 +186,8 @@ int main(int argc, char* argv[]) {
         SetColor(RED);
         cerr << "Error: " << e.what() << endl;
         SetColor(WHITE);
-        return 1;
+        return ERROR_EXIT;
     }
 
-    return 0;
+    return SUCCESS_EXIT;
 }
