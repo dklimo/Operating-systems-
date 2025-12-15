@@ -1,69 +1,6 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <windows.h>
 
-using namespace std;
-
-const int MAX_MESSAGE_LENGTH = 20;
-const DWORD WAIT_TIMEOUT_MS = 1000;
-
-enum ConsoleColor {
-    GREEN = 2,
-    YELLOW = 6,
-    RED = 4,
-    WHITE = 7
-};
-
-void SetColor(ConsoleColor color) {
-    HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hStdOut, (WORD)color);
-}
-
-bool processLauncher(vector<char>& cmdLine, PROCESS_INFORMATION& pi)
-{
-    STARTUPINFO si;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-
-    if (CreateProcessA(
-        NULL,
-        cmdLine.data(),
-        NULL,
-        NULL,
-        FALSE,
-        CREATE_NEW_CONSOLE,
-        NULL,
-        NULL,
-        &si,
-        &pi
-    ))
-        return true;
-    else
-        return false;
-}
-
-HANDLE createReadyEvent(const string& baseName, int index)
-{
-    string eventName = baseName + "_ready_" + to_string(index + 1);
-    HANDLE hEvent = CreateEventA(NULL, FALSE, FALSE, eventName.c_str());
-    if (!hEvent)
-    {
-        SetColor(RED);
-        cout << "CreateEvent failed for " << eventName << endl;
-        SetColor(WHITE);
-    }
-    return hEvent;
-}
-
-bool launchSenderProcess(const string& command, PROCESS_INFORMATION& pi)
-{
-    vector<char> cmdbuf(command.begin(), command.end());
-    cmdbuf.push_back('\0');
-    return processLauncher(cmdbuf, pi);
-}
+#include "utils.h"
+#include "process.h"
 
 class Receiver {
 private:
@@ -250,14 +187,13 @@ int main() {
                 SetColor(RED);
                 cerr << "Failed to start sender " << (i + 1) << endl;
                 SetColor(WHITE);
-                return 1;
+                return ERROR_EXIT;
             }
             SetColor(GREEN);
             cout << "Sender " << (i + 1) << " started" << endl;
             SetColor(WHITE);
         }
         receiver.waitForAllSenders();
-
 
         receiver.run();
 
@@ -280,8 +216,8 @@ int main() {
         SetColor(RED);
         cerr << "Error: " << e.what() << endl;
         SetColor(WHITE);
-        return 1;
+        return ERROR_EXIT; 
     }
 
-    return 0;
+    return SUCCESS_EXIT; 
 }
