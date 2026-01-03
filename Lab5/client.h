@@ -4,6 +4,7 @@
 #include <string>
 #include <windows.h>
 #include "employee.h"
+#include "utils.h"
 
 class Client {
 public:
@@ -24,5 +25,6 @@ private:
     HANDLE hPipe;
     bool connected;
 };
+
 
 #endif
