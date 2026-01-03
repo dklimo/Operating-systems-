@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string>
+#include "utils.h"
 using namespace std;
 
 struct Employee {
@@ -12,9 +13,9 @@ struct Employee {
 };
 
 enum class OperationType {
-    READ = 1,
-    WRITE = 2,
-    END = 3
+    READ = OPERATION_READ,
+    WRITE = OPERATION_WRITE,
+    END = OPERATION_END
 };
 
 struct Request {
@@ -36,12 +37,40 @@ inline ostream& operator<<(ostream& out, const Employee& emp) {
 }
 
 inline istream& operator>>(istream& in, Employee& emp) {
-    cout << "Employee's id: ";
-    in >> emp.id;
-    cout << "Employee's name (max 9 chars): ";
-    in >> emp.name;
+    bool valid_id = false;
+    while (!valid_id) {
+        cout << "Employee's id (1-" << MAX_EMPLOYEES << "): ";
+        emp.id = GetValidIntInput();
+        valid_id = IsValidEmployeeId(emp.id);
+        if (!valid_id) {
+            PrintError("Invalid employee ID! Must be between 1 and " +
+                to_string(MAX_EMPLOYEES));
+        }
+    }
+
+    string name;
+    bool valid_name = false;
+    while (!valid_name) {
+        cout << "Employee's name (max 9 chars): ";
+        name = GetValidStringInput();
+        valid_name = IsValidEmployeeName(name);
+        if (!valid_name) {
+            PrintError("Name must be 1-9 characters!");
+        }
+    }
+    strncpy_s(emp.name, sizeof(emp.name), name.c_str(), _TRUNCATE);
+
     cout << "Work hours: ";
-    in >> emp.hours;
+    bool valid_hours = false;
+    while (!valid_hours) {
+        emp.hours = GetValidDoubleInput();
+        valid_hours = IsValidWorkHours(emp.hours);
+        if (!valid_hours) {
+            PrintError("Work hours must be between 0 and 168!");
+            cout << "Work hours: ";
+        }
+    }
+
     return in;
 }
 
