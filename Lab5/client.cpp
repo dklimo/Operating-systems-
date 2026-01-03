@@ -1,12 +1,11 @@
 #include "client.h"
 #include <iostream>
 #include <cstring>
-#include <string>
 #include <limits>
 using namespace std;
 
 Client::Client(int id) : client_id(id), hPipe(INVALID_HANDLE_VALUE), connected(false) {
-    pipeName = "\\\\.\\pipe\\lab5_pipe_" + to_string(client_id);
+    pipeName = CreatePipeName(client_id);
 }
 
 Client::~Client() {
@@ -33,7 +32,7 @@ bool Client::connectToServer() {
             DWORD mode = PIPE_READMODE_MESSAGE;
             if (SetNamedPipeHandleState(hPipe, &mode, NULL, NULL)) {
                 connected = true;
-                cout << "Connected to server successfully." << endl;
+                PrintSuccess("Connected to server successfully as Client " + to_string(client_id));
                 return true;
             }
             CloseHandle(hPipe);
@@ -42,23 +41,23 @@ bool Client::connectToServer() {
 
         DWORD error = GetLastError();
         if (error == ERROR_PIPE_BUSY) {
-            cout << "Pipe is busy, waiting..." << endl;
-            if (!WaitNamedPipeA(pipeName.c_str(), 30000)) {
-                cerr << "WaitNamedPipe timeout" << endl;
+            PrintWarning("Pipe is busy, waiting...");
+            if (!WaitNamedPipeA(pipeName.c_str(), PIPE_TIMEOUT)) {
+                PrintError("WaitNamedPipe timeout");
                 continue;
             }
         }
         else if (error == ERROR_FILE_NOT_FOUND) {
-            cout << "Pipe not found, waiting for server..." << endl;
-            Sleep(1000);
+            PrintWarning("Pipe not found, waiting for server...");
+            Sleep(WAIT_RECONNECT_DELAY);
         }
         else {
-            cerr << "CreateFile error: " << error << endl;
+            PrintError("CreateFile error: " + to_string(error));
             break;
         }
     }
 
-    cerr << "Failed to connect to server after multiple attempts" << endl;
+    PrintError("Failed to connect to server after multiple attempts");
     return false;
 }
 
@@ -80,19 +79,19 @@ void Client::disconnectFromServer() {
         }
         hPipe = INVALID_HANDLE_VALUE;
         connected = false;
-        cout << "Disconnected from server." << endl;
+        PrintInfo("Disconnected from server");
     }
 }
 
 bool Client::sendRequest(const Request& request) {
     if (!connected || hPipe == INVALID_HANDLE_VALUE) {
-        cerr << "Not connected to server" << endl;
+        PrintError("Not connected to server");
         return false;
     }
 
     DWORD bytesWritten;
     if (!WriteFile(hPipe, &request, sizeof(Request), &bytesWritten, NULL)) {
-        cerr << "WriteFile failed: " << GetLastError() << endl;
+        PrintError("WriteFile failed: " + to_string(GetLastError()));
         connected = false;
         return false;
     }
@@ -101,7 +100,7 @@ bool Client::sendRequest(const Request& request) {
 
 bool Client::receiveResponse(Response& response) {
     if (!connected || hPipe == INVALID_HANDLE_VALUE) {
-        cerr << "Not connected to server" << endl;
+        PrintError("Not connected to server");
         return false;
     }
 
@@ -109,7 +108,7 @@ bool Client::receiveResponse(Response& response) {
     if (!ReadFile(hPipe, &response, sizeof(Response), &bytesRead, NULL)) {
         DWORD error = GetLastError();
         if (error != ERROR_BROKEN_PIPE) {
-            cerr << "ReadFile failed: " << error << endl;
+            PrintError("ReadFile failed: " + to_string(error));
         }
         connected = false;
         return false;
@@ -117,35 +116,20 @@ bool Client::receiveResponse(Response& response) {
     return bytesRead == sizeof(Response);
 }
 
-int getValidIntInput() {
-    int value;
-    while (!(cin >> value)) {
-        cout << "Invalid input. Please enter a number: ";
-        cin.clear();
-        cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
-    }
-    return value;
-}
-
-double getValidDoubleInput() {
-    double value;
-    while (!(cin >> value)) {
-        cout << "Invalid input. Please enter a number: ";
-        cin.clear();
-        cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
-    }
-    return value;
-}
-
-string getValidStringInput() {
-    string value;
-    cin >> value;
-    return value;
-}
-
 void Client::modifyRecord() {
+    PrintSeparator('-');
+    SetColor(CYAN);
+    cout << "=== MODIFY RECORD ===" << endl;
+    SetColor(WHITE);
+
     cout << "Enter employee ID to modify: ";
-    int employeeId = getValidIntInput();
+    int employeeId = GetValidIntInput();
+
+    if (!IsValidEmployeeId(employeeId)) {
+        PrintError("Invalid employee ID! Must be between 1 and " + to_string(MAX_EMPLOYEES));
+        return;
+    }
+
 
     Request lock_request;
     lock_request.operationType = OperationType::WRITE;
@@ -153,48 +137,73 @@ void Client::modifyRecord() {
     lock_request.emp = Employee{ 0, "", 0.0 };
 
     if (!sendRequest(lock_request)) {
-        cerr << "Failed to send lock request" << endl;
+        PrintError("Failed to send lock request");
         return;
     }
 
     Response lock_response;
     if (!receiveResponse(lock_response)) {
-        cerr << "Failed to receive lock response" << endl;
+        PrintError("Failed to receive lock response");
         return;
     }
 
     if (!lock_response.success) {
-        cout << "Record " << employeeId << " is locked by another client!" << endl;
+        PrintWarning("Record " + to_string(employeeId) +
+            " is locked by another client or doesn't exist!");
         return;
     }
 
-    cout << "\nCurrent employee data:" << endl;
+
+    PrintSeparator('-');
+    SetColor(YELLOW);
+    cout << "CURRENT EMPLOYEE DATA:" << endl;
+    SetColor(WHITE);
     cout << lock_response.emp;
 
     Employee emp = lock_response.emp;
 
-    cout << "\nEnter new data (enter - to keep current):" << endl;
+    PrintSeparator('-');
+    SetColor(GREEN);
+    cout << "ENTER NEW DATA (enter - to keep current):" << endl;
+    SetColor(WHITE);
 
-    cout << "New name (max 9 chars): ";
-    string name = getValidStringInput();
+
+    cout << "New name (max 9 chars, current: \"" << emp.name << "\"): ";
+    string name = GetValidStringInput();
     if (name != "-") {
-        strncpy(emp.name, name.c_str(), sizeof(emp.name) - 1);
-        emp.name[sizeof(emp.name) - 1] = '\0';
+        if (name.length() > 0 && name.length() <= MAX_NAME_LENGTH) {
+            strncpy(emp.name, name.c_str(), sizeof(emp.name) - 1);
+            emp.name[sizeof(emp.name) - 1] = '\0';
+        }
+        else if (name.length() > MAX_NAME_LENGTH) {
+            PrintWarning("Name too long! Truncating to " + to_string(MAX_NAME_LENGTH) + " characters.");
+            strncpy(emp.name, name.c_str(), sizeof(emp.name) - 1);
+            emp.name[sizeof(emp.name) - 1] = '\0';
+        }
     }
 
-    cout << "New work hours: ";
-    string hours_str = getValidStringInput();
+
+    cout << "New work hours (current: " << emp.hours << "): ";
+    string hours_str = GetValidStringInput();
     if (hours_str != "-") {
         try {
-            emp.hours = stod(hours_str);
+            double new_hours = stod(hours_str);
+            if (new_hours >= 0) {
+                emp.hours = new_hours;
+            }
+            else {
+                PrintWarning("Work hours cannot be negative! Keeping current value.");
+            }
         }
         catch (...) {
-            cout << "Invalid number format. Keeping old value." << endl;
+            PrintWarning("Invalid number format. Keeping current value.");
         }
     }
 
-    cout << "\nEnter 'send' to send modified record to server (or 'cancel' to abort): ";
-    string command = getValidStringInput();
+
+    PrintSeparator('-');
+    cout << "Enter 'send' to send modified record to server (or 'cancel' to abort): ";
+    string command = GetValidStringInput();
 
     if (command == "send") {
         Request write_request;
@@ -203,111 +212,151 @@ void Client::modifyRecord() {
         write_request.emp = emp;
 
         if (!sendRequest(write_request)) {
-            cerr << "Failed to send write request" << endl;
+            PrintError("Failed to send write request");
             return;
         }
 
         Response write_response;
         if (!receiveResponse(write_response)) {
-            cerr << "Failed to receive write response" << endl;
+            PrintError("Failed to receive write response");
             return;
         }
 
         if (write_response.success) {
-            cout << "Record updated successfully!" << endl;
+            PrintSuccess("Record updated successfully!");
         }
         else {
-            cout << "Failed to update record!" << endl;
+            PrintError("Failed to update record!");
         }
     }
     else {
-        cout << "Modification cancelled." << endl;
+        PrintWarning("Modification cancelled.");
     }
 
-    cout << "\nEnter 'finish' to release lock: ";
-    command = getValidStringInput();
+    bool lock_released = false;
+    do {
+        PrintSeparator('-');
+        cout << "Enter 'finish' to release lock (this is required): ";
+        command = GetValidStringInput();
 
-    if (command == "finish") {
-        Request end_request;
-        end_request.operationType = OperationType::END;
-        end_request.employeeId = employeeId;
+        if (command == "finish") {
+            Request end_request;
+            end_request.operationType = OperationType::END;
+            end_request.employeeId = employeeId;
 
-        if (!sendRequest(end_request)) {
-            cerr << "Failed to send finish request" << endl;
-        }
-        else {
-            Response end_response;
-            if (receiveResponse(end_response)) {
-                cout << "Lock released successfully." << endl;
+            if (!sendRequest(end_request)) {
+                PrintError("Failed to send finish request");
+            }
+            else {
+                Response end_response;
+                if (receiveResponse(end_response)) {
+                    PrintInfo("Lock released successfully.");
+                    lock_released = true;
+                }
             }
         }
-    }
+        else {
+            PrintError("Invalid input! You must enter 'finish' to release the lock.");
+            PrintWarning("Record " + to_string(employeeId) + " remains locked.");
+            PrintWarning("Other clients cannot access this record until you release it!");
+        }
+    } while (!lock_released);
 }
 
 void Client::readRecord() {
+    PrintSeparator('-');
+    SetColor(CYAN);
+    cout << "=== READ RECORD ===" << endl;
+    SetColor(WHITE);
+
     cout << "Enter employee ID to read: ";
-    int employeeId = getValidIntInput();
+    int employeeId = GetValidIntInput();
+
+    if (!IsValidEmployeeId(employeeId)) {
+        PrintError("Invalid employee ID!");
+        return;
+    }
 
     Request read_request;
     read_request.operationType = OperationType::READ;
     read_request.employeeId = employeeId;
 
     if (!sendRequest(read_request)) {
-        cerr << "Failed to send read request" << endl;
+        PrintError("Failed to send read request");
         return;
     }
 
     Response read_response;
     if (!receiveResponse(read_response)) {
-        cerr << "Failed to receive response" << endl;
+        PrintError("Failed to receive response");
         return;
     }
 
     if (!read_response.success) {
-        cout << "Employee with ID " << employeeId << " not found or locked for writing!" << endl;
+        PrintWarning("Employee with ID " + to_string(employeeId) + " not found or locked for writing!");
     }
     else {
-        cout << "\nEmployee data:" << endl;
+        PrintSeparator('-');
+        SetColor(YELLOW);
+        cout << "EMPLOYEE DATA:" << endl;
+        SetColor(WHITE);
         cout << read_response.emp;
     }
 
-    cout << "\nEnter 'finish' to release lock: ";
-    string command = getValidStringInput();
+    bool lock_released = false;
+    do {
+        PrintSeparator('-');
+        cout << "Enter 'finish' to release read lock (this is required): ";
+        string command = GetValidStringInput();
 
-    if (command == "finish") {
-        Request end_request;
-        end_request.operationType = OperationType::END;
-        end_request.employeeId = employeeId;
+        if (command == "finish") {
+            Request end_request;
+            end_request.operationType = OperationType::END;
+            end_request.employeeId = employeeId;
 
-        if (!sendRequest(end_request)) {
-            cerr << "Failed to send finish request" << endl;
-        }
-        else {
-            Response end_response;
-            if (receiveResponse(end_response)) {
-                cout << "Lock released successfully." << endl;
+            if (!sendRequest(end_request)) {
+                PrintError("Failed to send finish request");
+            }
+            else {
+                Response end_response;
+                if (receiveResponse(end_response)) {
+                    PrintInfo("Read lock released successfully.");
+                    lock_released = true;
+                }
             }
         }
-    }
+        else {
+            PrintError("Invalid input! You must enter 'finish' to release the read lock.");
+            PrintWarning("Record " + to_string(employeeId) + " remains locked for reading.");
+            PrintWarning("Other clients cannot write to this record until you release it!");
+        }
+    } while (!lock_released);
 }
 
 void Client::run() {
-    cout << "=== Client " << client_id << " started ===" << endl;
+    SetColor(BRIGHT_MAGENTA);
+    PrintSeparator('=', 40);
+    cout << "=== CLIENT " << client_id << " STARTED ===" << endl;
+    PrintSeparator('=', 40);
+    SetColor(WHITE);
 
     if (!connectToServer()) {
-        cerr << "Failed to connect to server. Exiting." << endl;
+        PrintError("Failed to connect to server. Exiting.");
         return;
     }
 
     try {
         while (true) {
-            cout << "\n=== Client " << client_id << " Menu ===" << endl;
+            PrintSeparator('=');
+            SetColor(BRIGHT_CYAN);
+            cout << "=== CLIENT " << client_id << " MENU ===" << endl;
+            SetColor(WHITE);
             cout << "1. Modify record" << endl;
             cout << "2. Read record" << endl;
             cout << "3. Exit" << endl;
             cout << "Your choice: ";
 
-            int choice = getValidIntInput();
+            int choice = GetValidIntInput();
 
             switch (choice) {
             case 1:
@@ -317,39 +366,48 @@ void Client::run() {
                 readRecord();
                 break;
             case 3:
+                PrintSeparator('=');
+                SetColor(YELLOW);
                 cout << "Client " << client_id << " stopping..." << endl;
+                SetColor(WHITE);
                 disconnectFromServer();
                 return;
             default:
-                cout << "Invalid choice! Please enter 1, 2, or 3." << endl;
+                PrintError("Invalid choice! Please enter 1, 2, or 3.");
             }
         }
     }
     catch (const exception& e) {
-        cerr << "Client error: " << e.what() << endl;
+        PrintError("Client error: " + string(e.what()));
         disconnectFromServer();
     }
     catch (...) {
-        cerr << "Unknown client error" << endl;
+        PrintError("Unknown client error");
         disconnectFromServer();
     }
 }
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        cerr << "Usage: client.exe <client_id>" << endl;
-        return 1;
+        PrintError("Usage: client.exe <client_id>");
+        return APP_ERROR_EXIT;
     }
 
     try {
         int client_id = stoi(argv[1]);
+
+        if (client_id < 0 || client_id >= MAX_PIPE_INSTANCES) {
+            PrintError("Invalid client ID! Must be between 0 and " + to_string(MAX_PIPE_INSTANCES - 1));
+            return ERROR_INVALID_DATA;
+        }
+
         Client client(client_id);
         client.run();
     }
     catch (const exception& e) {
-        cerr << "Error: " << e.what() << endl;
-        return 1;
+        PrintError("Error: " + string(e.what()));
+        return APP_ERROR_EXIT;
     }
 
-    return 0;
+    return APP_SUCCESS_EXIT; 
 }
