@@ -10,6 +10,7 @@
 #include <windows.h>
 #include "employee.h"
 #include "record_lock.h"
+#include "utils.h"
 
 class Server {
 public:
