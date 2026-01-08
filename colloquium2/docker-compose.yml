@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./todo.db
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./todo.db:/app/todo.db
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/console_templates'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:
