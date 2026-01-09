@@ -869,7 +869,7 @@ Enter 'finish' to release read lock (this is required): finish
 
 ---
 
-## ** Основные требования**
+## **Основные требования**
 
 ### **1. Базовый функционал (REST API)**
 - **CRUD операции** для ресурса `Task`:
@@ -906,7 +906,7 @@ Enter 'finish' to release read lock (this is required): finish
 
 ---
 
-## ** Архитектура системы**
+## **Архитектура системы**
 
 
 ### **Технологический стек**
@@ -926,7 +926,7 @@ Enter 'finish' to release read lock (this is required): finish
 
 ---
 
-## ** Эндпоинты API**
+## **Эндпоинты API**
 
 ### **Основные эндпоинты**
 
@@ -1084,7 +1084,7 @@ REQUEST_DURATION = Histogram('http_request_duration_seconds',
 
 ---
 
-## ** Развертывание с Docker Compose**
+## **Развертывание с Docker Compose**
 
 ### **Архитектура развертывания**
 
@@ -1121,13 +1121,13 @@ REQUEST_DURATION = Histogram('http_request_duration_seconds',
 
 ## **Что было реализовано в проекте**
 
-### ** Программа минимум:**
+### **Программа минимум:**
 1. **REST API с полным CRUD**
 2. **Валидация данных** (Pydantic)
 3. **Стандартные HTTP коды**
 4. **JSON формат обмена**
 
-### ** Дополнительные улучшения:**
+### **Дополнительные улучшения:**
 1. **Работа с БД** - SQLite + SQLAlchemy ORM
 2. **API Gateway функционал** - Middleware, CORS, Rate limiting (базовый)
 3. **Кэширование** - Redis с TTL 5 минут
